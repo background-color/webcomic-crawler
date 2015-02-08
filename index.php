@@ -93,7 +93,7 @@ foreach($urlList as $comicId => $comicUrl){
 	if(!$comicUrl)	break;
 	
 	if(!$getHtmlDom	= file_get_html($comicUrl))	break;
-	print "<br>----<br>";
+	print "<br>test!----<br>";
 	
 	foreach($getHtmlDom -> find($listDom[$comicId]) as $listArea){
 			foreach($listArea -> find($titleDom[$comicId]) as $title){
