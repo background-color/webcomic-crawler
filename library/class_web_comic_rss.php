@@ -108,6 +108,9 @@ class WebComicRss {
 				}
 			);
 			
+			
+			//取得情報が無い場合は 次へ
+			if(count($getComicUpdList) == 0)	continue;
 
 			//空を削除して 順番を古 → 新
 			$tmpComicUpdList = $getComicUpdList;
@@ -119,16 +122,24 @@ class WebComicRss {
 					if($ret["comic_dir"]){
 						$tmpComicUpd[1] = $ret["comic_dir"] . $tmpComicUpd[1];
 					}
+					
+					//サムネイル画像 ページから取得した場合
+	 				if($tmpComicUpd[2]){
+	 					//1文字目が /なら サイトURL追加
+	 					if(substr($tmpComicUpd[2], 0, 1) == "/")	$tmpComicUpd[2] =  $ret["site_url"] . $tmpComicUpd[2];
+	 				
+	 				//サムネイル画像 ページから取得出来なかったら 漫画DBに設定されている画像
+	 				}else{
+	 					$tmpComicUpd[2]	= $ret["thum"];
+	 				}
+					
 					array_unshift($getComicUpdList, $tmpComicUpd);
 				}
 			}
 			
-			//取得情報が無い場合は 次へ
-			if(count($getComicUpdList) == 0)	continue;
 			
 			
-			
-			//DBに取得情報登録
+			//DBに取得情報保持
 			foreach($getComicUpdList as $getComicUpd){
 				$this -> db -> ins("rss", 
 									array(
@@ -171,20 +182,12 @@ class WebComicRss {
 				
 				$newItem -> setTitle($rssRet["title"]);
  				$newItem -> setLink($rssRet["url"]);
- 				//$newItem -> setDescription("");
  				
- 				//サムネイル画像 ページから取得した画像 OR 漫画DBに設定されている画像
- 				$thumImg	= ($rssRet["thum"]) ? $rssRet["thum"] : $ret["thum"];
- 				
- 				if($thumImg){
- 				
- 					//1文字目が /なら http追加
- 					if(substr($thumImg, 0, 1) == "/")	$thumImg =  $ret["site_url"] . $thumImg;
- 					
- 					$thumImg	= "<img src={$thumImg}>";
+ 				if($rssRet["thum"]){
+ 					$newItem -> setDescription("<img src={$rssRet["thum"]}>");
+ 				}else{
+ 					$newItem -> setDescription("");
  				}
- 				
- 				$newItem -> setDescription($thumImg);
  				
  				$newItem -> setDate($rssRet["upd"]);
 				$newItem -> setId($rssRet["url"], true);
