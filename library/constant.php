@@ -4,7 +4,7 @@
 -------------------------------------------------------- */
 
 //1回のクロールで取得する 話数
-define("CRAWL_STORY_MAX",		20);
+define("CRAWL_STORY_MAX",		10);
 
 //RSS出力アイテム数
 define("RSS_ITEM_MAX",			3);

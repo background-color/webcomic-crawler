@@ -1,21 +1,17 @@
 <?php
 /* --------------------------------------------------------
  DB Class 2014/12/18 
- 
-http://qiita.com/mpyw/items/b00b72c5c95aac573b71
-http://qiita.com/tabo_purify/items/2575a58c54e43cd59630
-http://www.fwoabw.info/entry/2014/09/24/131114
-http://qiita.com/yaoki_dokidoki/items/cac1acafade3155e4386
-http://rasukaru55.sitemix.jp/phppdo.php
 -------------------------------------------------------- */
 class DataBaseModel {
 	private $db;
+	private $logger;
 	
 	/* --------------------------------------------------------
 		コンストラクタ
 	-------------------------------------------------------- */
 	public function __construct(){
 		$this -> dbconnect();
+		$this -> logger = Logger::getLogger('DebugLogger');
 	}
 	
 	/* --------------------------------------------------------
@@ -74,7 +70,7 @@ class DataBaseModel {
 		$insSql	.= implode(",", $prepareList);
 		$insSql	.= ", now())";
 		
-		print "<br>" . $insSql;
+		$this -> logger -> debug('SQL: ' . $insSql);
 		
 		$stmt = $this -> db -> prepare($insSql);
 		
@@ -110,7 +106,7 @@ class DataBaseModel {
 		$updSql	.= implode(",", $setSqlList);
 		$updSql	.= " WHERE " . $where;
 		
-		print "<br>" . $updSql;
+		$this -> logger -> debug('SQL: ' . $updSql);
 		
 		$stmt = $this -> db -> prepare($updSql);
 		

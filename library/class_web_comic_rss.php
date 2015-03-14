@@ -3,24 +3,31 @@
  Wwb Comic Rss Class 2014/12/18 
 -------------------------------------------------------- */
 //Goutte(HTML Dom)
-require_once HOME_PATH . 'library/Goutte/goutte.phar';
+require_once LIB_PATH . 'Goutte/goutte.phar';
 use Goutte\Client;
 
 //PHP Universal Feed Generator
-require_once HOME_PATH . 'library/FeedWriter-master/Item.php';
-require_once HOME_PATH . 'library/FeedWriter-master/Feed.php';
-require_once HOME_PATH . 'library/FeedWriter-master/RSS2.php';
+require_once LIB_PATH . 'FeedWriter-master/Item.php';
+require_once LIB_PATH . 'FeedWriter-master/Feed.php';
+require_once LIB_PATH . 'FeedWriter-master/RSS2.php';
 date_default_timezone_set("Asia/Tokyo");
 use \FeedWriter\RSS2;
 
 class WebComicRss {
+	//DBクラス
 	private $db;
+	//FEEDクラス
 	private $feed;
+	//ログクラス
+	private $logger;
+	
 	
 	/* --------------------------------------------------------
 		コンストラクタ
 	-------------------------------------------------------- */
 	public function __construct(){
+		$this -> logger = Logger::getLogger('DebugLogger');
+		
 	}
 	
 	/* --------------------------------------------------------
@@ -28,6 +35,8 @@ class WebComicRss {
 	-------------------------------------------------------- */
 	public function startCrawl(){
 		
+		$this -> logger -> debug('---------- start startCrawl()');
+
 		//DBクラス
 		$this -> db = new DataBaseModel;
 		
@@ -36,8 +45,9 @@ class WebComicRss {
 
 		//サイトデータ取得
 		//Select クエリ
-		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.upd_chk_title";
-		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url";
+		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.thum";
+		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_thum";
+		$selectSql	 .= ", T2.url AS site_url, T2.comic_dir";
 		$selectSql	 .= ", T3.title AS last_title, T3.url AS last_url";
 		
 		//Join クエリ
@@ -45,51 +55,54 @@ class WebComicRss {
 		$joinSql	.= " INNER JOIN site AS T2 ON T1.site_id = T2.id";
 		$joinSql	.= " LEFT JOIN rss AS T3 ON T1.rss_id = T3.id";
 		
+		//Where クエリ
+		$whereSql	= "T1.is_disabled = 0";
+		
+		
 		//DBから 取得
-		$siteStmt  = $this -> db -> findAll($joinSql, $selectSql);
+		$siteStmt  = $this -> db -> findAll($joinSql, $selectSql, $whereSql);
 		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
-
+			$this -> logger -> debug("get " . $ret["name"]);
+			
 			if(!$ret["url"])	continue;
 			
 			if(!$crawler = $client->request('GET', $ret["url"])){
-				//HTML取得できなかった エラー処理 入れる
+				//データ取得できない
+				$this -> logger -> debug("no get url / " . $ret["name"] . " / " . $ret["url"]);
 				continue;
 			}
-			
-			//URLパース取得しておく
-			$urlPaparse = parse_url($ret["url"]);
 			
 			//更新チェックフラグ
 			$isComicUpd	= true;
 			
+			
 			//取得情報
 			$getComicUpdList	= $crawler -> filter($ret["dom_upd_list"]) -> each(
 				function($element, $i) use (&$ret, &$isComicUpd){
+					
 					try{
 						//最大クロール数以下のみ処理
 						if($i <  CRAWL_STORY_MAX && $isComicUpd){
 							
 							$getTitle	= trim($element -> filter($ret["dom_upd_title"]) -> text());
 							$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> attr('href'));
-							
-							//タイトルチェック
-							if($ret["upd_chk_title"]){
-								//タイトル異なる場合 スルー
-								if (strpos($getTitle, $ret["upd_chk_title"]) === FALSE)	return false;
-							}
+							$getThum	= NULL;
+							if($ret["dom_thum"]) $getThum	=  trim($element -> filter($ret["dom_thum"]) -> attr('src'));
 						
 							//最終更新と比較 異なれば 値を返す
 							if($ret["last_title"] != $getTitle && $ret["last_url"] != $getUrl){
-								return array($getTitle, $getUrl);
+								return array($getTitle, $getUrl, $getThum);
 							
 							//一緒であれば 更新フラグ OFF
 							}else{
 								$isComicUpd = false;
 							}
 						}
+						
 					}catch(Exception $e) {
-						// エラー処理入れるか？
+						//エラー
 						//die($e->getMessage());
+						$this -> logger -> debug($e->getMessage());
 						return false;
 					}
 				}
@@ -102,9 +115,9 @@ class WebComicRss {
 			foreach($tmpComicUpdList as $tmpComicUpd){
 				if($tmpComicUpd){
 				
-					//URLが /からはじまっている場合 ドメインを足す
-					if( substr($tmpComicUpd[0], 0, 1) == "/"){
-						$tmpComicUpd[0] = $urlPaparse["scheme"] . "://" . $urlPaparse["hostname"] . $tmpComicUpd[0];
+					//コミックディレクトリが設定してある場合は 前半に追加、URLデコード
+					if($ret["comic_dir"]){
+						$tmpComicUpd[1] = $ret["comic_dir"] . $tmpComicUpd[1];
 					}
 					array_unshift($getComicUpdList, $tmpComicUpd);
 				}
@@ -122,6 +135,7 @@ class WebComicRss {
 										 "comic_id"	=> $ret["id"]
 										,"title"	=> $getComicUpd[0]
 										,"url"		=> $getComicUpd[1]
+										,"thum"		=> $getComicUpd[2]
 									));
 			}
 			
@@ -149,28 +163,31 @@ class WebComicRss {
 
 			
 			//テーブルから指定分取得
-			$rssStmt  = $this -> db -> findAll("rss", "title, url, upd", "comic_id = {$ret["id"]}", "id DESC", RSS_ITEM_MAX);
+			$rssStmt  = $this -> db -> findAll("rss", "title, url, upd, thum", "comic_id = {$ret["id"]}", "id DESC", RSS_ITEM_MAX);
 			while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
-		
-		
-			//foreach($getComicUpdList as $getComicUpd){
+				
+				//RSSのItem出力
 				$newItem = $feed -> createNewItem();
 				
 				$newItem -> setTitle($rssRet["title"]);
-				$newItem -> setLink($rssRet["url"]);
-				$newItem -> setDescription("");
-				
-				$newItem -> setDate($rssRet["upd"]);
+ 				$newItem -> setLink($rssRet["url"]);
+ 				//$newItem -> setDescription("");
+ 				
+ 				//サムネイル画像 ページから取得した画像 OR 漫画DBに設定されている画像
+ 				$thumImg	= ($rssRet["thum"]) ? $rssRet["thum"] : $ret["thum"];
+ 				
+ 				if($thumImg){
+ 				
+ 					//1文字目が /なら http追加
+ 					if(substr($thumImg, 0, 1) == "/")	$thumImg =  $ret["site_url"] . $thumImg;
+ 					
+ 					$thumImg	= "<img src={$thumImg}>";
+ 				}
+ 				
+ 				$newItem -> setDescription($thumImg);
+ 				
+ 				$newItem -> setDate($rssRet["upd"]);
 				$newItem -> setId($rssRet["url"], true);
-				
-				/*
-				$newItem -> setTitle($getComicUpd[0]);
-				$newItem -> setLink($getComicUpd[1]);
-				$newItem -> setDescription("");
-				
-				$newItem -> setDate(date("Y-m-d H:i:s"));
-				$newItem -> setId($getComicUpd[1], true);
-				*/
 				
 				$feed -> addItem($newItem);
 			}
@@ -181,6 +198,8 @@ class WebComicRss {
 			//メモリクリア
 			unset($crawler);
 		}
+		
+		$this -> logger -> debug('---------- end startCrawl()');
 		
 		//メモリクリア
 		unset($client);
