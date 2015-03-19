@@ -46,7 +46,7 @@ class WebComicRss {
 		//サイトデータ取得
 		//Select クエリ
 		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.thum";
-		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_thum";
+		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_thum, T2.is_descending";
 		$selectSql	 .= ", T2.url AS site_url, T2.comic_dir";
 		$selectSql	 .= ", T3.title AS last_title, T3.url AS last_url";
 		
@@ -112,28 +112,46 @@ class WebComicRss {
 			//取得情報が無い場合は 次へ
 			if(count($getComicUpdList) == 0)	continue;
 
-			//空を削除して 順番を古 → 新
+			//空を削除して 
 			$tmpComicUpdList = $getComicUpdList;
 			$getComicUpdList	= array();
 			foreach($tmpComicUpdList as $tmpComicUpd){
 				if($tmpComicUpd){
-				
+					
+					//タイトル整形
+					$tmpComicUpd[1] = $ret["name"] ." : ". $tmpComicUpd[1];
+					
+					//リンク整形
 					//コミックディレクトリが設定してある場合は 前半に追加、URLデコード
 					if($ret["comic_dir"]){
 						$tmpComicUpd[1] = $ret["comic_dir"] . $tmpComicUpd[1];
+					
+					//リンクが#から始まる場合は、サイトURLを追加
+					}elseif(substr($tmpComicUpd[1], 0, 1) == "#"){
+						$tmpComicUpd[1] = $ret["url"] . $tmpComicUpd[1];
+					
 					}
 					
-					//サムネイル画像 ページから取得した場合
+					//サムネイル画像整形
+					//ページから取得した場合
 	 				if($tmpComicUpd[2]){
 	 					//1文字目が /なら サイトURL追加
 	 					if(substr($tmpComicUpd[2], 0, 1) == "/")	$tmpComicUpd[2] =  $ret["site_url"] . $tmpComicUpd[2];
 	 				
-	 				//サムネイル画像 ページから取得出来なかったら 漫画DBに設定されている画像
+	 				// ページから取得出来なかったら 漫画DBに設定されている画像
 	 				}else{
 	 					$tmpComicUpd[2]	= $ret["thum"];
 	 				}
+	 				
 					
-					array_unshift($getComicUpdList, $tmpComicUpd);
+					//降順リスト 前に追加。順番を古 → 新に変換
+					if($ret["is_descending"] == "1"){
+						array_unshift($getComicUpdList, $tmpComicUpd);
+						
+					//昇順リスト 後ろに追加。順番は変えない
+					}else{
+						array_push($getComicUpdList, $tmpComicUpd);
+					}
 				}
 			}
 			
@@ -158,49 +176,28 @@ class WebComicRss {
 								,array("rss_id"	=> $this -> db ->lastInsertId())
 								,"id = {$ret["id"]}");
 			
-			
-			
-			//取得情報を RSS出力
-			$feedFile	= "rss/" . $ret["rss_file_name"] . ".xml";
-			$feed = new RSS2;
-			$feed -> setTitle($ret["name"]);
-			$feed -> setLink($ret["url"]);
-			$feed -> setDescription("WEB COMIC RSS");
-			$feed -> setChannelElement('language', 'ja-JP');
-			
-			$feed -> setDate(date(DATE_RSS, time()));
-			$feed -> setChannelElement('pubDate', date(\DATE_RSS, strtotime('2013-04-06')));
-			$feed -> setSelfLink(HOME_URL . $feedFile);
-
-			
-			//テーブルから指定分取得
-			$rssStmt  = $this -> db -> findAll("rss", "title, url, upd, thum", "comic_id = {$ret["id"]}", "id DESC", RSS_ITEM_MAX);
-			while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
-				
-				//RSSのItem出力
-				$newItem = $feed -> createNewItem();
-				
-				$newItem -> setTitle($rssRet["title"]);
- 				$newItem -> setLink($rssRet["url"]);
- 				
- 				if($rssRet["thum"]){
- 					$newItem -> setDescription("<img src={$rssRet["thum"]}>");
- 				}else{
- 					$newItem -> setDescription("");
- 				}
- 				
- 				$newItem -> setDate($rssRet["upd"]);
-				$newItem -> setId($rssRet["url"], true);
-				
-				$feed -> addItem($newItem);
-			}
-			
-			$xml = $feed -> generateFeed();	
-			file_put_contents( HOME_PATH . $feedFile , $xml);
-
 			//メモリクリア
 			unset($crawler);
+			
+			//RSS出力
+			$this -> databaseToRss($ret["rss_file_name"] . ".xml"
+								, $ret["name"]
+								, $ret["url"]
+								,  RSS_ITEM_MAX
+								, "comic_id = {$ret["id"]}");
+
 		}
+		
+		
+		//全体から 最新30件RSS出力
+		$this -> databaseToRss("all.xml"
+								, "ALL RSS"
+								, "http://54.64.139.63"
+								, 30
+								, "");
+		
+		
+		
 		
 		$this -> logger -> debug('---------- end startCrawl()');
 		
@@ -208,6 +205,56 @@ class WebComicRss {
 		unset($client);
 		return true;
 
+	}
+	
+	/* --------------------------------------------------------
+		DBからRSS作成
+		$fileName	= RSS出力ファイル
+		$rssTitle	= RSSタイトル
+		$rssUrl		= RSSURL
+		$rssCount	= RSSItem数
+		$queryWhere	= RSS出力データ where 句
+	-------------------------------------------------------- */
+	private function databaseToRss($fileName, $rssTitle, $rssUrl, $rssCount, $queryWhere){
+			
+		$feedFile	= "rss/" . $fileName;
+		
+		$feed = new RSS2;
+		$feed -> setTitle($rssTitle);
+		$feed -> setLink($rssUrl);
+		$feed -> setDescription("WEB COMIC RSS");
+		$feed -> setChannelElement('language', 'ja-JP');
+		
+		$feed -> setDate(date(DATE_RSS, time()));
+		$feed -> setChannelElement('pubDate', date(\DATE_RSS, strtotime('2013-04-06')));
+		$feed -> setSelfLink(HOME_URL . $feedFile);
+		
+		//テーブルから指定分取得
+		$rssStmt  = $this -> db -> findAll("rss", "title, url, upd, thum", $queryWhere, "id DESC", $rssCount);
+		while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
+			
+			//RSSのItem出力
+			$newItem = $feed -> createNewItem();
+			
+			$newItem -> setTitle($rssRet["title"]);
+ 			$newItem -> setLink($rssRet["url"]);
+ 			
+ 			if($rssRet["thum"]){
+ 				$newItem -> setDescription("<img src={$rssRet["thum"]}>");
+ 			}else{
+ 				$newItem -> setDescription("");
+ 			}
+ 			
+ 			$newItem -> setDate($rssRet["upd"]);
+			$newItem -> setId($rssRet["url"], true);
+			
+			$feed -> addItem($newItem);
+		}
+		
+		$xml = $feed -> generateFeed();	
+		file_put_contents( HOME_PATH . $feedFile , $xml);
+		
+		return true;
 	}
 }
 ?>
