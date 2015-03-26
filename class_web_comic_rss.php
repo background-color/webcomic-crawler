@@ -46,7 +46,7 @@ class WebComicRss {
 		//サイトデータ取得
 		//Select クエリ
 		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.thum";
-		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_thum, T2.is_descending";
+		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_upd_date, T2.dom_thum, T2.is_descending";
 		$selectSql	 .= ", T2.url AS site_url, T2.comic_dir";
 		$selectSql	 .= ", T3.title AS last_title, T3.url AS last_url";
 		
@@ -82,10 +82,14 @@ class WebComicRss {
 							
 							$getTitle	= trim($element -> filter($ret["dom_upd_title"]) -> text());
 							$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> attr('href'));
+							
+							$getDate	= NULL;
+							if($ret["dom_upd_date"]) $getDate	=  trim($element -> filter($ret["dom_upd_date"]) -> text());
+							
 							$getThum	= NULL;
 							if($ret["dom_thum"]) $getThum	=  trim($element -> filter($ret["dom_thum"]) -> attr('src'));
 							
-							return array("title" => $getTitle, "url" => $getUrl,  "thum" => $getThum);
+							return array("title" => $getTitle, "url" => $getUrl,  "dt" => $getDate,  "thum" => $getThum);
 						
 						}
 						
@@ -108,22 +112,31 @@ class WebComicRss {
 				if(!$tmpValue)	break;
 				
 				
-				//タイトル整形
+				//--- タイトル整形
 				$tmpValue["title"] = $ret["name"] ." : ". $tmpValue["title"];
 				
-				//リンク整形
+				//--- リンク整形
 				//コミックディレクトリが設定してある場合は 前半に追加
 				if($ret["comic_dir"]){
 					$tmpValue["url"] = $ret["comic_dir"] . $tmpValue["url"];
 				
-				//リンクが#から始まる場合は、サイトURLを追加
-				}elseif(substr($tmpValue["url"], 0, 1) == "#"){
+				//リンクがhttp以外から始まる場合は、サイトURLを追加
+				}elseif(substr($tmpValue["url"], 0, 4) != "http"){
 					$tmpValue["url"] = $ret["url"] . $tmpValue["url"];
 				
 				}
 				
-				//最終更新と比較 同じであればループ抜ける
-				if($ret["last_title"] == $tmpValue["title"] && $ret["last_url"] == $tmpValue["url"])	break;
+				//--- 更新日整形
+				if($tmpValue["dt"]){
+					if(preg_match( '/([0-9]{4})\.([0-9]{2})\.([0-9]{2})/', $tmpValue["dt"], $matches)){
+						$tmpValue["dt"]	= $matches[1] ."-". $matches[2] ."-". $matches[3];
+					}
+				}else{
+					$tmpValue["dt"] = date("Y-m-d H:i:s");
+				}
+				
+				//---最終更新と比較 同じであればループ抜ける
+				if($ret["last_url"] == $tmpValue["url"])	break;
 				
 				
 				
@@ -155,6 +168,7 @@ class WebComicRss {
 										,"title"	=> $getComicUpdList[$i]["title"]
 										,"url"		=> $getComicUpdList[$i]["url"]
 										,"thum"		=> $getComicUpdList[$i]["thum"]
+										,"upd"		=> $getComicUpdList[$i]["dt"]
 									));
 			}
 			
