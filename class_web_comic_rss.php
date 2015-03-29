@@ -21,12 +21,20 @@ class WebComicRss {
 	//ログクラス
 	private $logger;
 	
+	//HTMLテンプレートファイル名
+	const HTML_TAMPLATE = 'tmpl_list.txt';
+	
+	//HTMLテンプレート埋め込み位置記号
+	const HTML_TAMPLATE_INSERT_MARK = '##RSSLIST##';
+	
 	
 	/* --------------------------------------------------------
 		コンストラクタ
 	-------------------------------------------------------- */
 	public function __construct(){
 		$this -> logger = Logger::getLogger('DebugLogger');
+		//DBクラス
+		$this -> db = new DataBaseModel;
 		
 	}
 	
@@ -36,9 +44,6 @@ class WebComicRss {
 	public function startCrawl(){
 		
 		$this -> logger -> debug('---------- start startCrawl()');
-
-		//DBクラス
-		$this -> db = new DataBaseModel;
 		
 		//Goutte
 		$client = new Client();
@@ -259,6 +264,58 @@ class WebComicRss {
 		file_put_contents( HOME_PATH . $feedFile , $xml);
 		
 		return true;
+	}
+	/* --------------------------------------------------------
+		DBからHTML作成
+	-------------------------------------------------------- */
+	private function databaseToHtml(){
+		$html = "";
+
+		//サイトデータ取得
+		//Select クエリ
+		$selectSql	  = "T1.url, T1.name, T1.rss_file_name, T1.thum";
+		$selectSql	 .= ", T2.name AS site_name, T2.url AS site_url";
+		$selectSql	 .= ", DATE_FORMAT(T3.upd, '%Y/%m/%d') AS last_upd";
+		
+		//Join クエリ
+		$joinSql	 = "comic AS T1";
+		$joinSql	.= " INNER JOIN site AS T2 ON T1.site_id = T2.id";
+		$joinSql	.= " LEFT JOIN rss AS T3 ON T1.rss_id = T3.id";
+		
+		//Where クエリ
+		$whereSql	= "T1.is_disabled = 0";
+		
+		//OrderBy クエリ
+		$orderSql	= "T3.upd DESC";
+		
+		
+		//DBから リストデータ取得
+		$siteStmt  = $this -> db -> findAll($joinSql, $selectSql, $whereSql, $orderSql);
+		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
+$html .= <<<EOF
+
+			<div class="col-sm-4 col-md-2">
+				<div class="thumbnail">
+					<img alt="" src="{$ret["thum"]}" width="130">
+					<div class="caption">
+						<h3 id="thumbnail-label"><a href="{$ret["url"]}">{$ret["name"]}</a></h3>
+						<p>{$ret["site_name"]}
+						<br>update:{$ret["last_upd"]}</p>
+						<p><a href="rss/{$ret["rss_file_name"]}.xml" class="btn btn-primary" role="button">RSS</a></p>
+					</div>
+				</div>
+			</div>
+EOF;
+		}
+		
+		//テンプレートファイル読み込み
+		$templateContents	= file_get_contents(dirname(__FILE__) . '/' . self::HTML_TAMPLATE);
+		
+		//置換
+		$templateContents	= str_replace(self::HTML_TAMPLATE_INSERT_MARK, $html, $templateContents);
+		
+		//出力
+		//file_put_contents ("list.html", $templateContents);
 	}
 }
 ?>
