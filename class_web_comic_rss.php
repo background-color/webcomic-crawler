@@ -46,7 +46,10 @@ class WebComicRss {
 		$this -> logger -> debug('---------- start startCrawl()');
 		
 		//Goutte
-		$client = new Client();
+		$goutteConfig	= array('useragent'	=> USER_AGENT
+								,'timeout'	=> 10
+								);
+		$client			= new Client($goutteConfig);
 
 		//サイトデータ取得
 		//Select クエリ
@@ -67,13 +70,19 @@ class WebComicRss {
 		//DBから 取得
 		$siteStmt  = $this -> db -> findAll($joinSql, $selectSql, $whereSql);
 		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
-			$this -> logger -> debug("get " . $ret["name"]);
 			
 			if(!$ret["url"])	continue;
 			
-			if(!$crawler = $client->request('GET', $ret["url"])){
-				//データ取得できない
-				$this -> logger -> debug("no get url / " . $ret["name"] . " / " . $ret["url"]);
+			//URLからデータ取得
+			try{
+				if(!$crawler = $client->request('GET', $ret["url"])){
+					//データ取得できない
+					$this -> logger -> debug("no get url / " . $ret["name"] . " / " . $ret["url"]);
+					continue;
+				}
+			}catch(Exception $e) {
+				//エラー
+				$this -> logger -> debug("ERROR " . __LINE__ . " / {$ret["id"]}:{$ret["name"]} / " . $e->getMessage());
 				continue;
 			}
 			
@@ -101,7 +110,7 @@ class WebComicRss {
 					}catch(Exception $e) {
 						//エラー
 						//die($e->getMessage());
-						$this -> logger -> debug($e->getMessage());
+						$this -> logger -> debug("ERROR " . __LINE__ . " /  {$ret["id"]}:{$ret["name"]} / " . $e->getMessage());
 						return false;
 					}
 				}
