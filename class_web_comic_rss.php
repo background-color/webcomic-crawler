@@ -64,7 +64,7 @@ class WebComicRss {
 		$joinSql	.= " LEFT JOIN rss AS T3 ON T1.rss_id = T3.id";
 		
 		//Where クエリ
-		$whereSql	= "T1.is_disabled = 0 AND T1.id = 33";
+		$whereSql	= "T1.is_disabled = 0";
 		
 		
 		//DBから 取得
