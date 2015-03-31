@@ -54,7 +54,7 @@ class WebComicRss {
 		//サイトデータ取得
 		//Select クエリ
 		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.thum";
-		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_upd_date, T2.dom_thum, T2.is_descending";
+		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_upd_date, T2.dom_thum, T2.is_descending, T2.url_type";
 		$selectSql	 .= ", T2.url AS site_url, T2.comic_dir";
 		$selectSql	 .= ", T3.title AS last_title, T3.url AS last_url";
 		
@@ -64,7 +64,7 @@ class WebComicRss {
 		$joinSql	.= " LEFT JOIN rss AS T3 ON T1.rss_id = T3.id";
 		
 		//Where クエリ
-		$whereSql	= "T1.is_disabled = 0";
+		$whereSql	= "T1.is_disabled = 0 AND T1.id = 33";
 		
 		
 		//DBから 取得
@@ -94,12 +94,25 @@ class WebComicRss {
 						//最大クロール数以下のみ処理
 						if($i <  CRAWL_STORY_MAX){
 							
+							//タイトル取得
 							$getTitle	= trim($element -> filter($ret["dom_upd_title"]) -> text());
-							$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> attr('href'));
 							
+							//URL取得
+							switch($ret["url_type"]){
+								case 2:	//指定のDOMのtext
+									$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> text());
+									break;
+							
+								case 1:	//指定DOMの href
+								default:
+									$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> attr('href'));
+							}
+							
+							//更新日取得
 							$getDate	= NULL;
 							if($ret["dom_upd_date"]) $getDate	=  trim($element -> filter($ret["dom_upd_date"]) -> text());
 							
+							//サムネイル取得
 							$getThum	= NULL;
 							if($ret["dom_thum"]) $getThum	=  trim($element -> filter($ret["dom_thum"]) -> attr('src'));
 							
@@ -127,7 +140,7 @@ class WebComicRss {
 				
 				
 				//--- タイトル整形
-				$tmpValue["title"] = $ret["name"] ." : ". $tmpValue["title"];
+				$tmpValue["title"] = $ret["name"] ." : ". str_replace ($ret["name"], "" , $tmpValue["title"]);
 				
 				//--- リンク整形
 				//コミックディレクトリが設定してある場合は 前半に追加
@@ -143,6 +156,9 @@ class WebComicRss {
 				//--- 更新日整形
 				if($tmpValue["dt"]){
 					if(preg_match( '/([0-9]{4})\.([0-9]{2})\.([0-9]{2})/', $tmpValue["dt"], $matches)){
+						$tmpValue["dt"]	= $matches[1] ."-". $matches[2] ."-". $matches[3];
+						
+					}elseif(preg_match( '/([0-9]{4})年([0-9]{2})月([0-9]{2})日/', $tmpValue["dt"], $matches)){
 						$tmpValue["dt"]	= $matches[1] ."-". $matches[2] ."-". $matches[3];
 					}
 				}else{
