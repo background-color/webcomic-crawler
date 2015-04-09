@@ -73,6 +73,11 @@ class WebComicRss {
 			
 			if(!$ret["url"])	continue;
 			
+			//クロール話数を追加設定 昇順表示のページは +10
+			$ret["page_crawl_story_max"]	= CRAWL_STORY_MAX;
+			if($ret["is_descending"] == "0")	$ret["page_crawl_story_max"] += 10;
+			
+			
 			//URLからデータ取得
 			try{
 				if(!$crawler = $client->request('GET', $ret["url"])){
@@ -90,9 +95,9 @@ class WebComicRss {
 			$crawlerGetList	= $crawler -> filter($ret["dom_upd_list"]) -> each(
 				function($element, $i) use (&$ret){
 					
-					try{
+					try{						
 						//最大クロール数以下のみ処理
-						if($i <  CRAWL_STORY_MAX){
+						if($i <  $ret["page_crawl_story_max"]){
 							
 							//タイトル取得
 							$getTitle	= trim($element -> filter($ret["dom_upd_title"]) -> text());
@@ -101,6 +106,13 @@ class WebComicRss {
 							switch($ret["url_type"]){
 								case 2:	//指定のDOMのtext
 									$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> text());
+									break;
+									
+								case 3:	//指定のDOMの onclick内 ('XXX')の部分
+									$getUrl		= trim($element -> filter($ret["dom_upd_url"]) -> attr('onclick'));
+									if(preg_match('/\(\'(.*)\'\)/', $getUrl, $match)){
+										$getUrl = $match[1];
+									}
 									break;
 							
 								case 1:	//指定DOMの href
@@ -128,7 +140,6 @@ class WebComicRss {
 					}
 				}
 			);
-			
 			
 			//リストが昇順の場合、新 → 旧のソート順位変更
 			if($ret["is_descending"] == "0")	$crawlerGetList = array_reverse($crawlerGetList);
