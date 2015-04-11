@@ -54,7 +54,8 @@ class WebComicRss {
 		//サイトデータ取得
 		//Select クエリ
 		$selectSql	  = "T1.id, T1.url, T1.name, T1.rss_file_name, T1.thum";
-		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url, T2.dom_upd_date, T2.dom_thum, T2.is_descending, T2.url_type";
+		$selectSql	 .= ", T2.dom_upd_list, T2.dom_upd_title, T2.dom_upd_url";
+		$selectSql	 .= ", T2.dom_upd_date, T2.dom_thum, T2.is_descending, T2.url_type, T2.dom_upd_date_attr";
 		$selectSql	 .= ", T2.url AS site_url, T2.comic_dir";
 		$selectSql	 .= ", T3.title AS last_title, T3.url AS last_url";
 		
@@ -73,9 +74,9 @@ class WebComicRss {
 			
 			if(!$ret["url"])	continue;
 			
-			//クロール話数を追加設定 昇順表示のページは +10
+			//クロール話数を追加設定 昇順表示のページは +99
 			$ret["page_crawl_story_max"]	= CRAWL_STORY_MAX;
-			if($ret["is_descending"] == "0")	$ret["page_crawl_story_max"] += 10;
+			if($ret["is_descending"] == "0")	$ret["page_crawl_story_max"] += 99;
 			
 			
 			//URLからデータ取得
@@ -122,7 +123,12 @@ class WebComicRss {
 							
 							//更新日取得
 							$getDate	= NULL;
-							if($ret["dom_upd_date"]) $getDate	=  trim($element -> filter($ret["dom_upd_date"]) -> text());
+							if($ret["dom_upd_date"] && $ret["dom_upd_date_attr"]){
+								$getDate	=  trim($element -> filter($ret["dom_upd_date"]) -> attr($ret["dom_upd_date_attr"]));
+							}elseif($ret["dom_upd_date"]){
+								$getDate	=  trim($element -> filter($ret["dom_upd_date"]) -> text());
+							
+							}
 							
 							//サムネイル取得
 							$getThum	= NULL;
@@ -171,8 +177,19 @@ class WebComicRss {
 						
 					}elseif(preg_match( '/([0-9]{4})年([0-9]{2})月([0-9]{2})日/', $tmpValue["dt"], $matches)){
 						$tmpValue["dt"]	= $matches[1] ."-". $matches[2] ."-". $matches[3];
+						
+					}elseif(preg_match( '/\(([0-9]{1,2})\/([0-9]{1,2})\)/', $tmpValue["dt"], $matches)){
+						$tmpValue["dt"]	= date('Y') ."-". $matches[1] ."-". $matches[2];
+						
+					}elseif(preg_match( '/([0-9]{1,2})\.([0-9]{1,2})\(.*\)/', $tmpValue["dt"], $matches)){
+						$tmpValue["dt"]	= date('Y') ."-". $matches[1] ."-". $matches[2];
+						
+					}else{
+						$tmpValue["dt"]	= null;
 					}
-				}else{
+				}
+				
+				if(!$tmpValue["dt"]){
 					$tmpValue["dt"] = date("Y-m-d H:i:s");
 				}
 				
@@ -243,6 +260,8 @@ class WebComicRss {
 		
 		
 		
+		//HTML出力
+		$this -> databaseToHtml();
 		
 		$this -> logger -> debug('---------- end startCrawl()');
 		
@@ -310,7 +329,7 @@ class WebComicRss {
 		//サイトデータ取得
 		//Select クエリ
 		$selectSql	  = "T1.url, T1.name, T1.rss_file_name, T1.thum";
-		$selectSql	 .= ", T2.name AS site_name, T2.url AS site_url";
+		$selectSql	 .= ", T2.id AS site_id, T2.name AS site_name, T2.url AS site_url";
 		$selectSql	 .= ", DATE_FORMAT(T3.upd, '%Y/%m/%d') AS last_upd";
 		
 		//Join クエリ
@@ -331,11 +350,11 @@ class WebComicRss {
 $html .= <<<EOF
 
 			<div class="col-sm-4 col-md-2">
-				<div class="thumbnail">
-					<img alt="" src="{$ret["thum"]}" width="130">
+				<div class="thumbnail" data-siteid="{$ret["site_id"]}">
+					<a href="{$ret["url"]}" class="thumbnail-img"><img alt="" src="{$ret["thum"]}" width="130"></a>
 					<div class="caption">
 						<h3 id="thumbnail-label"><a href="{$ret["url"]}">{$ret["name"]}</a></h3>
-						<p>{$ret["site_name"]}
+						<p><a href="{$ret["site_url"]}">{$ret["site_name"]}</a>
 						<br>update:{$ret["last_upd"]}</p>
 						<p><a href="rss/{$ret["rss_file_name"]}.xml" class="btn btn-primary" role="button">RSS</a></p>
 					</div>
@@ -351,7 +370,7 @@ EOF;
 		$templateContents	= str_replace(self::HTML_TAMPLATE_INSERT_MARK, $html, $templateContents);
 		
 		//出力
-		//file_put_contents ("list.html", $templateContents);
+		file_put_contents ("list.html", $templateContents);
 	}
 }
 ?>

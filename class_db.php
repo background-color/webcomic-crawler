@@ -70,7 +70,7 @@ class DataBaseModel {
 		$insSql	.= implode(",", $prepareList);
 		$insSql	.= ", now())";
 		
-		$this -> logger -> debug('SQL: ' . $insSql);
+		//$this -> logger -> debug('SQL: ' . $insSql);
 		
 		$stmt = $this -> db -> prepare($insSql);
 		
@@ -106,7 +106,7 @@ class DataBaseModel {
 		$updSql	.= implode(",", $setSqlList);
 		$updSql	.= " WHERE " . $where;
 		
-		$this -> logger -> debug('SQL: ' . $updSql);
+		//$this -> logger -> debug('SQL: ' . $updSql);
 		
 		$stmt = $this -> db -> prepare($updSql);
 		
