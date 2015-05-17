@@ -25,7 +25,8 @@ class WebComicRss {
 	const HTML_TAMPLATE = 'tmpl_list.txt';
 	
 	//HTMLテンプレート埋め込み位置記号
-	const HTML_TAMPLATE_INSERT_MARK = '##RSSLIST##';
+	const HTML_TAMPLATE_INSERT_MARK_RSS		= '##RSSLIST##';
+	const HTML_TAMPLATE_INSERT_MARK_SITE	= '##SITELIST##';
 	
 	
 	/* --------------------------------------------------------
@@ -324,7 +325,15 @@ class WebComicRss {
 		DBからHTML作成
 	-------------------------------------------------------- */
 	private function databaseToHtml(){
-		$html = "";
+		
+		//WEBサイトリスト取得
+		$siteHtml	= "";
+		$siteStmt	= $this -> db -> findAll("site", "id, name");
+		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
+$siteHtml .= <<<EOF
+<option value="{$ret["id"]}">{$ret["name"]}</option>
+EOF;
+		}
 
 		//サイトデータ取得
 		//Select クエリ
@@ -345,12 +354,13 @@ class WebComicRss {
 		
 		
 		//DBから リストデータ取得
-		$siteStmt  = $this -> db -> findAll($joinSql, $selectSql, $whereSql, $orderSql);
-		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
-$html .= <<<EOF
+		$comicHtml	= "";
+		$comicStmt	= $this -> db -> findAll($joinSql, $selectSql, $whereSql, $orderSql);
+		while($ret = $comicStmt -> fetch(PDO::FETCH_ASSOC)){
+$comicHtml .= <<<EOF
 
-			<div class="col-sm-4 col-md-2">
-				<div class="thumbnail" data-siteid="{$ret["site_id"]}">
+			<div class="col-md-2 col-sm-4 col-xs-6" data-siteid="{$ret["site_id"]}">
+				<div class="thumbnail">
 					<a href="{$ret["url"]}" class="thumbnail-img"><img alt="" src="{$ret["thum"]}" width="130"></a>
 					<div class="caption">
 						<h3 id="thumbnail-label"><a href="{$ret["url"]}">{$ret["name"]}</a></h3>
@@ -367,10 +377,11 @@ EOF;
 		$templateContents	= file_get_contents(dirname(__FILE__) . '/' . self::HTML_TAMPLATE);
 		
 		//置換
-		$templateContents	= str_replace(self::HTML_TAMPLATE_INSERT_MARK, $html, $templateContents);
+		$templateContents	= str_replace(self::HTML_TAMPLATE_INSERT_MARK_SITE, $siteHtml, $templateContents);
+		$templateContents	= str_replace(self::HTML_TAMPLATE_INSERT_MARK_RSS, $comicHtml, $templateContents);
 		
 		//出力
-		file_put_contents ("list.html", $templateContents);
+		file_put_contents (HOME_PATH . "index.html", $templateContents);
 	}
 }
 ?>
