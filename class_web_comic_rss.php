@@ -66,7 +66,7 @@ class WebComicRss {
 		$joinSql	.= " LEFT JOIN rss AS T3 ON T1.rss_id = T3.id";
 		
 		//Where クエリ
-		$whereSql	= "T1.is_disabled = 0";
+		$whereSql	= "T1.is_disabled = 0 AND T1.id=58";
 		
 		
 		//DBから 取得
@@ -115,6 +115,10 @@ class WebComicRss {
 									if(preg_match('/\(\'(.*)\'\)/', $getUrl, $match)){
 										$getUrl = $match[1];
 									}
+									break;
+									
+								case 4:	//booklive.jp 用  .data-title + data-vol
+									$getUrl		= $element -> filter($ret["dom_upd_url"]) -> attr('data-title') . "_" . $element -> filter($ret["dom_upd_url"]) -> attr('data-vol');
 									break;
 							
 								case 1:	//指定DOMの href
