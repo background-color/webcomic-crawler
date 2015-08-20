@@ -74,6 +74,7 @@ class WebComicRss {
 		while($ret = $siteStmt -> fetch(PDO::FETCH_ASSOC)){
 			
 			if(!$ret["url"])	continue;
+			$this -> logger -> debug("{$ret["id"]}{$ret["name"]}");
 			
 			//クロール話数を追加設定 昇順表示のページは +99
 			$ret["page_crawl_story_max"]	= CRAWL_STORY_MAX;
@@ -252,7 +253,7 @@ class WebComicRss {
 								, $ret["url"]
 								,  RSS_ITEM_MAX
 								, "comic_id = {$ret["id"]}");
-
+			
 		}
 		
 		

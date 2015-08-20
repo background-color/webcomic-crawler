@@ -69,11 +69,10 @@
 <a name="about"></a>
 <div id="about-area" class="wall clearfix">
 	<div class="about-img pull-left">
-		<img src="profile.gif" width="64" height="64" alt="プロフィール画像" class="img-circle">
+		<img src="https://avatars0.githubusercontent.com/u/10904568" width="64" height="64" alt="プロフィール画像" class="img-circle">
 	</div>
 	<div class="pull-left">
-		<strong>作ってる人</strong>
-		<p>背景色（<a href="http://profile.hatena.ne.jp/background-color/">id:background-color</a>）
+		<p><a href=https://github.com/background-color">https://github.com/background-color</a>
 		<br>基本的に自分が読んでいるWEB漫画のRSSを作成しています。
 		<br>追加して欲しいWEB漫画がある場合はお知らせください（2015.05.16）
 		</p>
