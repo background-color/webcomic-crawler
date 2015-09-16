@@ -5,6 +5,7 @@
 /html
  + /rss
  + index.html
+ + list.html
 
 /webcomic_rss
  + class_db.php
