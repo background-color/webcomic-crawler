@@ -1,8 +1,12 @@
 # web comic crawler
-# beta version 
+web漫画のサイトをクロールしてRSSを作成します。
+beta version
 
+# path
 
+/cron
 /html
+ + /bootstrap
  + /rss
  + index.html
  + list.html
