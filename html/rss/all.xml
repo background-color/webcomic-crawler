@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>ALL RSS</title>
+<link></link>
+<description><![CDATA[WEB COMIC RSS]]></description>
+<language>ja-JP</language>
+<lastBuildDate>Mon, 16 Nov 2015 21:13:18 +0900</lastBuildDate>
+<pubDate>Sat, 06 Apr 2013 00:00:00 +0900</pubDate>
+<atom:link href="/rss/all.xml" rel="self" type="application/rss+xml"></atom:link>
+<item>
+<title>sample</title>
+<link></link>
+<description><![CDATA[]]></description>
+<pubDate>Sat, 14 Nov 2015 11:10:37 +0900</pubDate>
+<guid isPermaLink="true"></guid>
+</item>
+</channel>
+</rss>
