@@ -252,7 +252,7 @@ class WebComicRss {
 								, $ret["name"]
 								, $ret["url"]
 								,  RSS_ITEM_MAX
-								, "comic_id = {$ret["id"]}");
+								, "T1.comic_id = {$ret["id"]}");
 			
 		}
 		
@@ -300,7 +300,8 @@ class WebComicRss {
 		$feed -> setSelfLink(HOME_URL . $feedFile);
 		
 		//テーブルから指定分取得
-		$rssStmt  = $this -> db -> findAll("rss", "title, url, upd, thum", $queryWhere, "id DESC", $rssCount);
+		$rssStmt  = $this -> db -> findAll("rss AS T1 INNER JOIN comic AS T2 ON T1.comic_id = T2.id"
+											, "T1.title, T2.url, T1.upd, T1.thum", $queryWhere, "T1.id DESC", $rssCount);
 		while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
 			
 			//RSSのItem出力
