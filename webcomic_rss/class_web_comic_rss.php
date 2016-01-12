@@ -301,7 +301,7 @@ class WebComicRss {
 		
 		//テーブルから指定分取得
 		$rssStmt  = $this -> db -> findAll("rss AS T1 INNER JOIN comic AS T2 ON T1.comic_id = T2.id"
-											, "T1.title, T2.url, T1.upd, T1.thum", $queryWhere, "T1.id DESC", $rssCount);
+											, "T1.id, T1.title, T2.url, T1.upd, T1.thum", $queryWhere, "T1.id DESC", $rssCount);
 		while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
 			
 			//RSSのItem出力
@@ -309,6 +309,7 @@ class WebComicRss {
 			
 			$newItem -> setTitle($rssRet["title"]);
  			$newItem -> setLink($rssRet["url"]);
+ 			$newItem -> setId($rssRet["id"]);
  			
  			if($rssRet["thum"]){
  				$newItem -> setDescription("<img src={$rssRet["thum"]}>");
