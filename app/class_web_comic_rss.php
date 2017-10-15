@@ -80,7 +80,7 @@ SQL;
 
       // チェック項目が変わっていたら db追加
       if($ret['check_text'] != $chk_text){
-			  $this->logger->debug("{$ret["id"]} {$ret["name"]} update: {$chk_text}");
+			  $this->logger->debug("update: comic_id:{$ret["id"]} update: {$chk_text}");
         $this->db->ins("rss",
           array(
 						"comic_id"  	=> $ret["id"],
@@ -109,7 +109,6 @@ SQL;
 	private function databaseToRss($fileName, $rssTitle,  $rssCount){
 
 		$feedFile	= "rss/" . $fileName;
-		$this->logger->debug('output start: ' . $feedFile);
 
 		$feed = new RSS2;
 		$feed -> setTitle($rssTitle);
@@ -145,4 +144,5 @@ SQL;
 		$this->logger->debug('output: ' . HOME_PATH . $feedFile);
 		return true;
 	}
+}
 ?>
