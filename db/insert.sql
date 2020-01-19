@@ -2,8 +2,8 @@ CREATE TABLE `site` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL DEFAULT '' COMMENT 'サイト名',
   `url` varchar(255) NOT NULL,
-  `check_dom` varchar(255) NOT NULL DEFAULT '' COMMENT '更新チェックをする DOM',
-  `upd_dom` varchar(255) NOT NULL DEFAULT '' COMMENT '更新日DOM',
+  `url_type` int(1) DEFAULT '1' COMMENT '1: html, 2: json',
+  `check_field` varchar(255) NOT NULL DEFAULT '' COMMENT '更新チェックをする DOM',
   `upd` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `ins` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)

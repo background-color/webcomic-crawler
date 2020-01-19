@@ -20,15 +20,26 @@ class WebComicRss {
 	private $feed;
 	//ログクラス
 	private $logger;
+  // Goutte
+  private $goutte;
+
+  private $err_mes;
+
+  const URL_TYPE_HTML = 1;
+  const URL_TYPE_JSON = 2;
 
 	/* --------------------------------------------------------
 		コンストラクタ
 	-------------------------------------------------------- */
 	public function __construct(){
 		$this -> logger = Logger::getLogger('DebugLogger');
-		//DBクラス
 		$this -> db = new DataBaseModel;
 
+		//Goutte
+		$goutteConfig	= array('useragent'	=> USER_AGENT
+								,'timeout'	=> 10
+								);
+		$this -> goutte	= new Client($goutteConfig);
 	}
 
 	/* --------------------------------------------------------
@@ -39,16 +50,10 @@ class WebComicRss {
 		$this->logger->debug('---------- start startCrawl()');
     $today = date('Y/m/d');
 
-		//Goutte
-		$goutteConfig	= array('useragent'	=> USER_AGENT
-								,'timeout'	=> 10
-								);
-		$client			= new Client($goutteConfig);
-
     $query = <<<SQL
 select
 c.id, c.name, c.url,
-s.check_dom, s.upd_dom,
+s.url_type, s.check_field,
 r.check_text
 from comic as c
 inner join site as s on c.site_id = s.id
@@ -63,20 +68,32 @@ SQL;
 			if(!$ret["url"])	continue;
 			//$this->logger->debug("{$ret["id"]} {$ret["name"]}");
 
-			try{
-				if(!$crawler = $client->request('GET', $ret["url"])){
-					$this->logger->debug("no get url / " . $ret["name"] . " / " . $ret["url"]);
-					continue;
-				}
-			}catch(Exception $e) {
-				//エラー
-				$this->logger->debug("ERROR " . __LINE__ . " / {$ret["id"]}:{$ret["name"]} / " . $e->getMessage());
-				continue;
-			}
+      $chk_text = "";
+      if($ret["url_type"] == self::URL_TYPE_HTML) {
+        $chk_text = $this->chkHtml($ret["url"], $ret["check_field"]);
+      } else {
+        $chk_text = $this->chkJson($ret["url"], $ret["check_field"]);
+      }
 
-      $chk_text = $crawler -> filter($ret["check_dom"]) -> text();
-      $chk_text = trim($chk_text);
-      $upd_text = ($ret["upd_dom"]) ? $crawler -> filter($ret["upd_dom"]) -> text() : date('Y/m/d');
+      if(!$chk_text){
+			 	$this->logger->debug("ERROR : {$ret["id"]}:{$ret["name"]} / " . $this->err_mes);
+			 	continue;
+
+      }
+
+			// try{
+			// 	if(!$crawler = $this->goutte->request('GET', $ret["url"])){
+			// 		$this->logger->debug("no get url / " . $ret["name"] . " / " . $ret["url"]);
+			// 		continue;
+			// 	}
+      //   $chk_text = $crawler -> filter($ret["check_field"]) -> text();
+      //   $chk_text = trim($chk_text);
+
+			// }catch(Exception $e) {
+			// 	//エラー
+			// 	$this->logger->debug("ERROR " . __LINE__ . " / {$ret["id"]}:{$ret["name"]} / " . $e->getMessage());
+			// 	continue;
+			// }
 
       // チェック項目が変わっていたら db追加
       if($ret['check_text'] != $chk_text){
@@ -85,20 +102,75 @@ SQL;
           array(
 						"comic_id"  	=> $ret["id"],
 						"check_text"	=> $chk_text,
-						"upd_text"		=> $upd_text
           ));
       }
 			//メモリクリア
-			unset($crawler);
+			//unset($crawler);
     }
 
     //RSS出力
-    $this -> databaseToRss("all.xml", "ALL RSS", 30);
+    $this -> databaseToRss("all_rss.xml", "ALL RSS", 30);
 		$this -> logger -> debug('---------- end startCrawl()');
 		//メモリクリア
-      unset($client);
-      return true;
+    unset($this->goutte);
+    return true;
 	}
+
+	/* --------------------------------------------------------
+    HTMLから 該当のdom取得
+		$url    	 = HTMLのURL
+    $check_field = チェックDOM
+	-------------------------------------------------------- */
+	private function chkHtml($url, $check_field){
+		try{
+			if(!$crawler = $this->goutte->request('GET', $url)){
+				$this->logger->debug("no get url / " . $url);
+        return false;
+			}
+      $chk_text = $crawler->filter($check_field)->text();
+      $chk_text = trim($chk_text);
+      unset($crawler);
+
+		}catch(Exception $e) {
+      $this->err_mes = $e->getMessage();
+      return false;
+		}
+    return $chk_text;
+  }
+
+	/* --------------------------------------------------------
+    Jsonから 該当の項目取得
+		$url    	 = jsonのURL
+    $check_field = チェック項目
+	-------------------------------------------------------- */
+	private function chkJson($url, $check_field){
+		try{
+      $json_file = file_get_contents($url);
+      $json_file = mb_convert_encoding($json_file, 'UTF8', 'ASCII,JIS,UTF-8,EUC-JP,SJIS-WIN');
+      $json = json_decode($json_file);
+
+      $json_path_array = explode('->', $check_field);
+      $chk_text = $this->getJsonValue($json, $json_path_array);
+      $chk_text = trim($chk_text);
+
+
+		}catch(Exception $e) {
+      $this->err_mes = $e->getMessage();
+      return false;
+		}
+    return $chk_text;
+  }
+  // 再帰的に指定のpathの値を取得
+  private function getJsonValue($json, $path) {
+    if(!is_array($path)) return false;
+
+    $json_path = array_shift($path);
+    $json = $json->$json_path;
+    if(count($path) > 0) {
+      $json = $this->getJsonValue($json, $path);
+    }
+    return $json;
+  }
 
 	/* --------------------------------------------------------
 		DBからRSS作成
@@ -122,7 +194,7 @@ SQL;
 
 		//テーブルから指定分取得
 		$rssStmt  = $this -> db -> findAll("rss AS T1 INNER JOIN comic AS T2 ON T1.comic_id = T2.id"
-											, "T1.id, T1.check_text, T1.upd_text, T2.name, T2.url, T1.ins", "", "T1.id DESC", $rssCount);
+											, "T1.id, T1.check_text, T2.name, T2.url, T1.ins", "", "T1.id DESC", $rssCount);
 		while($rssRet = $rssStmt -> fetch(PDO::FETCH_ASSOC)){
 
 			//RSSのItem出力
@@ -131,7 +203,7 @@ SQL;
 			$newItem -> setTitle($rssRet["name"]);
  			$newItem -> setLink($rssRet["url"]);
  			$newItem -> setId($rssRet["id"]);
- 		  $newItem -> setDescription($rssRet["check_text"] ."<br>". $rssRet["upd_text"]);
+ 		  $newItem -> setDescription($rssRet["check_text"]);
 
  			$newItem -> setDate($rssRet["ins"]);
 			$newItem -> setId($rssRet["url"], true);
@@ -139,7 +211,7 @@ SQL;
 			$feed -> addItem($newItem);
 		}
 
-		$xml = $feed -> generateFeed();	
+		$xml = $feed -> generateFeed();
 		file_put_contents( HOME_PATH . $feedFile , $xml);
 		$this->logger->debug('output: ' . HOME_PATH . $feedFile);
 		return true;
