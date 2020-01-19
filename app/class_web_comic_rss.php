@@ -52,7 +52,7 @@ class WebComicRss {
 
     $query = <<<SQL
 select
-c.id, c.name, c.url,
+c.id, c.name, c.url, c.chk_url,
 s.url_type, s.check_field,
 r.check_text
 from comic as c
@@ -72,7 +72,8 @@ SQL;
       if($ret["url_type"] == self::URL_TYPE_HTML) {
         $chk_text = $this->chkHtml($ret["url"], $ret["check_field"]);
       } else {
-        $chk_text = $this->chkJson($ret["url"], $ret["check_field"]);
+			  if(!$ret["chk_url"])	continue;
+        $chk_text = $this->chkJson($ret["chk_url"], $ret["check_field"]);
       }
 
       if(!$chk_text){

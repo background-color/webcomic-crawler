@@ -14,6 +14,7 @@ CREATE TABLE `comic` (
   `site_id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
   `url` varchar(255) NOT NULL,
+  `chk_url` varchar(255) DEFAULT NULL COMMENT 'チェックurlが異なる場合',
   `is_disabled` int(11) NOT NULL DEFAULT '0' COMMENT '無効フラグ',
   `upd` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `ins` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
