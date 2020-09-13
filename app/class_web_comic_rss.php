@@ -40,6 +40,7 @@ class WebComicRss {
 								,'timeout'	=> 10
 								);
 		$this -> goutte	= new Client($goutteConfig);
+    $this -> goutte -> getClient() -> setDefaultOption("verify", false);
 	}
 
 	/* --------------------------------------------------------
