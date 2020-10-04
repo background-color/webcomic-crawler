@@ -3,8 +3,10 @@
  Wwb Comic Rss Class 2014/12/18 
 -------------------------------------------------------- */
 //Goutte(HTML Dom)
-require_once LIB_PATH . 'Goutte/goutte.phar';
+require_once LIB_PATH . 'vendor/autoload.php';
+
 use Goutte\Client;
+use Symfony\Component\HttpClient\HttpClient;
 
 //PHP Universal Feed Generator
 require_once LIB_PATH . 'FeedWriter-master/Item.php';
@@ -36,11 +38,8 @@ class WebComicRss {
 		$this -> db = new DataBaseModel;
 
 		//Goutte
-		$goutteConfig	= array('useragent'	=> USER_AGENT
-								,'timeout'	=> 10
-								);
-		$this -> goutte	= new Client($goutteConfig);
-    $this -> goutte -> getClient() -> setDefaultOption("verify", false);
+    $goutteConfig = ['timeout' => 1, 'verify' => false];
+    $this -> goutte = new Client($goutteConfig);
 	}
 
 	/* --------------------------------------------------------
